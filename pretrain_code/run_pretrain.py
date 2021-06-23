@@ -22,7 +22,6 @@ from transformers.utils import logging
 
 from modeling.modeling_nezha.modeling import NeZhaForMaskedLM
 from modeling.modeling_nezha.configuration import NeZhaConfig
-from modeling.modeling_spanbert.modeling import DebertaForSpanLM
 from util.tokenizer import SimpleTokenizer
 from simple_trainer import Trainer
 from pretrain_args import TrainingArguments
