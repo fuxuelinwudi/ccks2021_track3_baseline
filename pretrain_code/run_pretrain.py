@@ -20,8 +20,8 @@ from transformers import (
 )
 from transformers.utils import logging
 
-from modeling.modeling_nezha.modeling import NeZhaForMaskedLM
-from modeling.modeling_nezha.configuration import NeZhaConfig
+from ..modeling.modeling_nezha.modeling import NeZhaForMaskedLM
+from ..modeling.modeling_nezha.configuration import NeZhaConfig
 from simple_trainer import Trainer
 from pretrain_args import TrainingArguments
 
