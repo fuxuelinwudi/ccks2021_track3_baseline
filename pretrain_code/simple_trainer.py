@@ -1347,14 +1347,6 @@ class Trainer:
         else:
             loss.backward()
 
-        if self.args.use_fgm:
-
-            fgm = FGM(model)
-            fgm.attack()
-            adv_loss = self.compute_loss(model, inputs)
-            adv_loss.backward()
-            fgm.restore()
-
         return loss.detach()
 
     def compute_loss(self, model, inputs, return_outputs=False):
