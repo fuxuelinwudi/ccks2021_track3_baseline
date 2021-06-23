@@ -1,10 +1,10 @@
 # ccks2021_track3_baseline
  a baseline to practice
-
+路径可能会有问题，自己改改
 
 
 torch>=1.7.1
-
+transformers==4.7.0
 cuda==11.0
 
 this is a baseline, you can fix params to improve your score
