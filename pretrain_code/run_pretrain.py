@@ -102,8 +102,8 @@ def main():
     }
 
     mlm_probability = 0.15
-    num_train_epochs = 50
-    seq_length = 90
+    num_train_epochs = 150
+    seq_length = 100
     batch_size = 32
     learning_rate = 6e-5
     save_steps = 5000
