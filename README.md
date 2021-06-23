@@ -7,3 +7,4 @@ torch>=1.7.1
 
 cuda==11.0
 
+this is a baseline, you can fix params to improve your score
