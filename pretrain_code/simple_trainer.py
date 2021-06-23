@@ -16,7 +16,6 @@ import warnings
 from logging import StreamHandler
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
-from torch.optim.swa_utils import AveragedModel, SWALR
 
 # Integrations must be imported before ML frameworks:
 from transformers.integrations import (  # isort: split
@@ -98,141 +97,6 @@ from pretrain_args import TrainingArguments
 from transformers.training_args import ParallelMode
 from transformers.utils import logging
 from transformers.utils.modeling_auto_mapping import MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES
-
-
-class Lookahead(Optimizer):
-    def __init__(self, optimizer, k=5, alpha=0.5):
-        self.optimizer = optimizer
-        self.k = k
-        self.alpha = alpha
-        self.param_groups = self.optimizer.param_groups
-        self.state = defaultdict(dict)
-        self.fast_state = self.optimizer.state
-        for group in self.param_groups:
-            group["counter"] = 0
-
-    def update(self, group):
-        for fast in group["params"]:
-            param_state = self.state[fast]
-            if "slow_param" not in param_state:
-                param_state["slow_param"] = torch.zeros_like(fast.data)
-                param_state["slow_param"].copy_(fast.data)
-            slow = param_state["slow_param"]
-            slow += (fast.data - slow) * self.alpha
-            fast.data.copy_(slow)
-
-    def update_lookahead(self):
-        for group in self.param_groups:
-            self.update(group)
-
-    def step(self, closure=None):
-        loss = self.optimizer.step(closure)
-        for group in self.param_groups:
-            if group["counter"] == 0:
-                self.update(group)
-            group["counter"] += 1
-            if group["counter"] >= self.k:
-                group["counter"] = 0
-        return loss
-
-    def state_dict(self):
-        fast_state_dict = self.optimizer.state_dict()
-        slow_state = {
-            (id(k) if isinstance(k, torch.Tensor) else k): v
-            for k, v in self.state.items()
-        }
-        fast_state = fast_state_dict["state"]
-        param_groups = fast_state_dict["param_groups"]
-        return {
-            "fast_state": fast_state,
-            "slow_state": slow_state,
-            "param_groups": param_groups,
-        }
-
-    def load_state_dict(self, state_dict):
-        slow_state_dict = {
-            "state": state_dict["slow_state"],
-            "param_groups": state_dict["param_groups"],
-        }
-        fast_state_dict = {
-            "state": state_dict["fast_state"],
-            "param_groups": state_dict["param_groups"],
-        }
-        super(Lookahead, self).load_state_dict(slow_state_dict)
-        self.optimizer.load_state_dict(fast_state_dict)
-        self.fast_state = self.optimizer.state
-
-    def add_param_group(self, param_group):
-        param_group["counter"] = 0
-        self.optimizer.add_param_group(param_group)
-
-
-class FGM:
-    def __init__(self, model):
-        self.model = model
-        self.backup = {}
-        self.emb_name = 'word_embeddings.'
-        self.epsilon = 1.0
-
-    def attack(self):
-        for name, param in self.model.named_parameters():
-            if param.requires_grad and self.emb_name in name:
-                self.backup[name] = param.data.clone()
-                norm = torch.norm(param.grad)
-                if norm != 0 and not torch.isnan(norm):
-                    r_at = self.epsilon * param.grad / norm
-                    param.data.add_(r_at)
-
-    def restore(self):
-        for name, param in self.model.named_parameters():
-            if param.requires_grad and self.emb_name in name:
-                assert name in self.backup
-                param.data = self.backup[name]
-        self.backup = {}
-
-
-class PGD:
-    def __init__(self, model):
-        self.model = model
-        self.emb_backup = {}
-        self.grad_backup = {}
-        self.epsilon = 1.0
-        self.emb_name = 'word_embeddings.'
-        self.alpha = 0.3
-
-    def attack(self, is_first_attack=False):
-        for name, param in self.model.named_parameters():
-            if param.requires_grad and self.emb_name in name:
-                if is_first_attack:
-                    self.emb_backup[name] = param.data.clone()
-                norm = torch.norm(param.grad)
-                if norm != 0 and not torch.isnan(norm):
-                    r_at = self.alpha * param.grad / norm
-                    param.data.add_(r_at)
-                    param.data = self.project(name, param.data, self.epsilon)
-
-    def restore(self):
-        for name, param in self.model.named_parameters():
-            if param.requires_grad and self.emb_name in name:
-                assert name in self.emb_backup
-                param.data = self.emb_backup[name]
-        self.emb_backup = {}
-
-    def project(self, param_name, param_data, epsilon):
-        r = param_data - self.emb_backup[param_name]
-        if torch.norm(r) > epsilon:
-            r = epsilon * r / torch.norm(r)
-        return self.emb_backup[param_name] + r
-
-    def backup_grad(self):
-        for name, param in self.model.named_parameters():
-            if param.requires_grad and param.grad is not None:
-                self.grad_backup[name] = param.grad.clone()
-
-    def restore_grad(self):
-        for name, param in self.model.named_parameters():
-            if param.requires_grad and param.grad is not None:
-                param.grad = self.grad_backup[name]
 
 
 _is_native_amp_available = False
@@ -327,12 +191,6 @@ class Trainer:
         # force device and distributed setup init explicitly
         args._setup_devices
 
-        if self.args.use_swa:
-            print('\n>> swa pretraining ... ... ')
-        if self.args.use_lookahead:
-            print('\n>> lookahead pretraining ... ... ')
-        if self.args.use_fgm:
-            print('\n>> fgm pretraining ... ... ')
 
         if model is None:
             if model_init is not None:
@@ -1013,7 +871,6 @@ class Trainer:
         self._globalstep_last_logged = self.state.global_step
         self._total_flos = self.state.total_flos
         model.zero_grad()
-        swa_model = AveragedModel(model)
         self.control = self.callback_handler.on_train_begin(self.args, self.state, self.control)
 
         # Skip the first epochs_trained epochs to get the random state of the dataloader at the right point.
@@ -1022,15 +879,6 @@ class Trainer:
                 # We just need to begin an iteration to create the randomization of the sampler.
                 for _ in train_dataloader:
                     break
-
-        if self.args.use_lookahead:
-            self.optimizer = Lookahead(self.optimizer, 5, 1)
-
-        if self.args.use_swa:
-            swa_start = len(train_dataloader) - 500
-            swa_steps = self.args.swa_steps
-            swa_scheduler = SWALR(swa_lr=self.args.learning_rate/2, optimizer=self.optimizer)
-            swa_valid = False
 
         for epoch in range(epochs_trained, num_train_epochs):
             if isinstance(train_dataloader, DataLoader) and isinstance(train_dataloader.sampler, DistributedSampler):
@@ -1119,38 +967,21 @@ class Trainer:
                         self.optimizer.step()
 
                     if not self.deepspeed:
-                        if self.args.use_swa and step > swa_start:
-                            if step == swa_start:
-                                print('\n>> swa start ... ...')
-
-                            if (step + 1) % swa_steps == 0:
-                                swa_valid = True
-                                swa_model.update_parameters(model)
-                            swa_scheduler.step()
-                        else:
-                            self.lr_scheduler.step()
+                        self.lr_scheduler.step()
 
                     model.zero_grad()
                     self.state.global_step += 1
                     self.state.epoch = epoch + (step + 1) / steps_in_epoch
                     self.control = self.callback_handler.on_step_end(self.args, self.state, self.control)
 
-                    if self.args.use_swa:
-                        if swa_valid:
-                            self._maybe_log_save_evaluate(tr_loss, swa_model, trial, epoch)
-                        else:
-                            self._maybe_log_save_evaluate(tr_loss, model, trial, epoch)
-                    else:
-                        self._maybe_log_save_evaluate(tr_loss, model, trial, epoch)
+                    self._maybe_log_save_evaluate(tr_loss, model, trial, epoch)
                 if self.control.should_epoch_stop or self.control.should_training_stop:
                     break
 
             self.control = self.callback_handler.on_epoch_end(self.args, self.state, self.control)
 
-            if self.args.use_swa:
-                self._maybe_log_save_evaluate(tr_loss, swa_model, trial, epoch)
-            else:
-                self._maybe_log_save_evaluate(tr_loss, model, trial, epoch)
+
+            self._maybe_log_save_evaluate(tr_loss, model, trial, epoch)
 
             if self.args.tpu_metrics_debug or self.args.debug:
                 if is_torch_tpu_available():

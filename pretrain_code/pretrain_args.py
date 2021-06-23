@@ -92,15 +92,6 @@ class TrainingArguments:
             "Batch size per GPU/TPU core/CPU for evaluation."
         },
     )
-    use_fgm: bool = field(
-        default=False, metadata={"help": "Whether to use fgm."}
-    )
-    use_lookahead: bool = field(
-        default=False, metadata={"help": "Whether to use lookahead."}
-    )
-    use_swa: bool = field(
-        default=False, metadata={"help": "Whether to use swa."}
-    )
     gradient_accumulation_steps: int = field(
         default=1,
         metadata={"help": "Number of updates steps to accumulate before performing a backward/update pass."},
