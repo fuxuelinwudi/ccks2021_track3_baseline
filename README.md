@@ -25,3 +25,14 @@ https://github.com/lonePatient/NeZha_Chinese_PyTorch
 
 #
 address: https://tianchi.aliyun.com/competition/entrance/531901/score
+
+#
+steps:
+
+1.run pretrain_code/run_pretrain.py
+
+2.run run_classify.py
+
+3.run run_predictor.py
+
+4.upload your submit file
