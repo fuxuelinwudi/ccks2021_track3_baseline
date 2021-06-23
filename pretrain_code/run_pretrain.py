@@ -160,10 +160,7 @@ def main():
         logging_steps=500,
         save_total_limit=5,
         prediction_loss_only=True,
-        seed=seed,
-        use_swa=True,
-        use_fgm=False,
-        use_lookahead=False
+        seed=seed
     )
 
     trainer = Trainer(
