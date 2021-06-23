@@ -297,7 +297,7 @@ def main():
         'epsilon': 1.0,
         'adv_k': 3,
         'emb_name': 'word_embeddings.',
-        'adv': '',
+        'adv': 'pgd',
         'warmup_ratio': 0.1,
         'weight_decay': 0.01,
         'device': 'cuda',
