@@ -10,6 +10,7 @@ cuda==11.0
 this is a baseline, you can fix params to improve your score
 
 some useful tricks:
+
 1.https://github.com/alphadl/lookahead.pytorch
 2.https://github.com/timgaripov/swa
 3.https://github.com/lonePatient/multi-sample_dropout_pytorch
