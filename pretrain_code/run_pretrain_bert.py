@@ -23,7 +23,6 @@ from transformers import (
 )
 from transformers.utils import logging
 
-from modeling.modeling_nezha.modeling import NeZhaForMaskedLM, NeZhaConfig
 from simple_trainer import Trainer
 from pretrain_args import TrainingArguments
 
@@ -92,10 +91,6 @@ class LineByLineTextDataset(Dataset):
 
 
 def main():
-    """
-    download pretrain model from https://github.com/lonePatient/NeZha_Chinese_PyTorch,
-    we only use pretrain model name : nezha-cn-base, nezha-base-wwm
-    """
     config = {
         'pretrain_type': 'dynamic_mask',  # dynamic_mask, whole_word_mask
         'data_cache_path': '',
@@ -115,7 +110,7 @@ def main():
     if use bert, replace NeZhaForMaskedLM -> BertForMaskedLM, 
                          NeZhaConfig -> BertConfig
                          model_name -> your pretrain_model name
-                         
+
     example: 
             >>      model_name = bert-base-uncased
                     model_path = '../pretrain_model/' + model_name + '/pytorch_model.bin'
@@ -129,11 +124,13 @@ def main():
 
     # put dowm your file path
     if config['pretrain_type'] == 'whole_word_mask':
-        model_name = 'nezha-base-wwm'
+        # https://huggingface.co/hfl/chinese-bert-wwm-ext
+        model_name = 'chinese-bert-wwm-ext'
     else:
-        model_name = 'nezha-cn-base'
+        # https://huggingface.co/hfl/chinese-macbert-base
+        model_name = 'chinese-macbert-base'
 
-    config['data_cache_path'] = '../user_data/pretrain/'+config['pretrain_type']+'/data.pkl'
+    config['data_cache_path'] = '../user_data/pretrain/' + config['pretrain_type'] + '/data.pkl'
 
     model_path = '../pretrain_model/' + model_name + '/pytorch_model.bin'
     config_path = '../pretrain_model/' + model_name + '/config.json'
@@ -141,18 +138,13 @@ def main():
     vocab_file = '../pretrain_model/' + model_name + '/vocab.txt'
     tokenizer = BertTokenizer.from_pretrained(vocab_file)
 
-    model_config = NeZhaConfig.from_pretrained(config_path)
-
-    assert os.path.isfile(model_path), f"Input file path {model_path} not found, " \
-                                       f"please download relative pretrain model in huggingface or" \
-                                       f"https://github.com/lonePatient/NeZha_Chinese_PyTorch " \
-                                       f"model name:nezha-cn-base or nezha-base-wwm"
+    model_config = BertConfig.from_pretrained(config_path)
 
     if config['pretrain_type'] == 'dynamic_mask':
         data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer,
                                                         mlm=True,
                                                         mlm_probability=mlm_probability)
-        model = NeZhaForMaskedLM.from_pretrained(pretrained_model_name_or_path=model_path,
+        model = BertForMaskedLM.from_pretrained(pretrained_model_name_or_path=model_path,
                                                  config=model_config)
         model_save_path = 'mlm_model'
 
@@ -160,7 +152,7 @@ def main():
         data_collator = DataCollatorForWholeWordMask(tokenizer=tokenizer,
                                                      mlm=True,
                                                      mlm_probability=mlm_probability)
-        model = NeZhaForMaskedLM.from_pretrained(pretrained_model_name_or_path=model_path,
+        model = BertForMaskedLM.from_pretrained(pretrained_model_name_or_path=model_path,
                                                  config=model_config)
         model_save_path = 'whole_word_mask_model'
 
