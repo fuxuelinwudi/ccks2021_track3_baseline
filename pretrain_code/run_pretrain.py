@@ -16,12 +16,13 @@ from transformers import (
     BertTokenizer,
     DataCollatorForLanguageModeling,
     DataCollatorForWholeWordMask,
-    PreTrainedTokenizer, BertConfig
+    PreTrainedTokenizer,
+    BertConfig,
+    BertForMaskedLM
 )
 from transformers.utils import logging
 
-from ..modeling.modeling_nezha.modeling import NeZhaForMaskedLM
-from ..modeling.modeling_nezha.configuration import NeZhaConfig
+from modeling.modeling_nezha.modeling import NeZhaForMaskedLM, NeZhaConfig
 from simple_trainer import Trainer
 from pretrain_args import TrainingArguments
 
@@ -108,6 +109,22 @@ def main():
     learning_rate = 6e-5
     save_steps = 5000
     seed = 2021
+
+    """
+    if use bert, replace NeZhaForMaskedLM -> BertForMaskedLM, 
+                         NeZhaConfig -> BertConfig
+                         model_name -> your pretrain_model name
+                         
+    example: 
+            >>      model_name = bert-base-uncased
+                    model_path = '../pretrain_model/' + model_name + '/pytorch_model.bin'
+                    config_path = '../pretrain_model/' + model_name + '/config.json'
+                    vocab_file = '../pretrain_model/' + model_name + '/vocab.txt'
+                    ... ...
+                    model_config = BertConfig.from_pretrained(config_path)
+                    BertForMaskedLM.from_pretrained(pretrained_model_name_or_path=model_path,
+                                                 config=model_config)
+    """
 
     # put dowm your file path
     if config['pretrain_type'] == 'whole_word_mask':

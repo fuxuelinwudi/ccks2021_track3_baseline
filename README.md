@@ -4,10 +4,16 @@
 
 
 torch>=1.7.1
+
+pyhton>=3.7.1
+
 transformers==4.7.0
+
 cuda==11.0
 
+
 this is a baseline, you can fix params to improve your score
+
 #
 some useful tricks:
 
