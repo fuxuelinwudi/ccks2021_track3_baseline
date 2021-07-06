@@ -3,9 +3,9 @@
 路径可能会有问题，自己改改
 
 
-torch>=1.7.1
+torch==1.7.1
 
-pyhton>=3.7.1
+pyhton==3.7.1
 
 transformers==4.7.0
 
